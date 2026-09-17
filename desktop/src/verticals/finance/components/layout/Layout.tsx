@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigation } from "react-router-dom";
 import {
-  Activity, ChevronDown, ChevronsLeft, ChevronsRight, Cog, Cpu, FileText, FlaskConical, Gauge, Github, Globe, Home, LayoutGrid, Microscope, Menu, X, Moon, Newspaper, NotebookPen, Radar, Rss, Settings, Star, Sun, Swords, Thermometer, TrendingUp, UserRound, Wallet,
+  Activity, ChevronDown, ChevronsLeft, ChevronsRight, Cog, Cpu, Database, FileText, FlaskConical, Gauge, Github, Globe, Home, LayoutGrid, Microscope, Menu, X, Moon, Newspaper, NotebookPen, Radar, Rss, Settings, Star, Sun, Swords, Thermometer, TrendingUp, UserRound, Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PhoenixTreeLogo } from "@/components/ui/PhoenixTreeLogo";
@@ -30,6 +30,7 @@ const NAV = [
   { to: "/portfolio", icon: Wallet, label: "我的持仓" },
   { to: "/my-reports", icon: FileText, label: "我的研报" },
   { to: "/notes", icon: NotebookPen, label: "研究记录" },
+  { to: "/datasources", icon: Database, label: "数据源" },
   { to: "/settings", icon: Settings, label: "接入 AI" },
 ];
 

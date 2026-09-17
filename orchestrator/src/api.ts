@@ -21,6 +21,8 @@ import { REPORT_MAX_BYTES } from "./report_library.ts";
 import { NOFOLLOW_FLAG, restrictPrivateFile } from "./fsutil.ts";
 import { resumeUnifiedTask, runUnifiedTask } from "./task_service.ts";
 import { deepTargetResolverFor } from "./deep_target_registry.ts";
+import { readDatasourceConfig, sanitizeDatasourceUpdate, writeDatasourceConfig } from "./datasource_config.ts";
+import { probeTushare } from "./tushare_probe.ts";
 
 
 // **composition root**:插件在入口注册,Core 模块一律不 import 它
@@ -197,6 +199,22 @@ export function createApiServer(ctx: ServiceContext, opts: { token: string; cook
         return send(res, 202, startCodexSubscriptionLogin(ctx));
       }
       if (req.method === "GET" && url.pathname === "/endpoints") return send(res, 200, listEndpoints(ctx, { layer: q.layer, market: q.market, q: q.q, enabled_only: q.enabled_only === "1", for_ui: q.all !== "1" }));
+      // 数据源配置(用户覆盖层):读 / 写 / Tushare 探针。鉴权 key 只存 .local,不进日志。
+      if (req.method === "GET" && url.pathname === "/datasources-config") {
+        return send(res, 200, readDatasourceConfig(ctx.dataRoot));
+      }
+      if (req.method === "POST" && url.pathname === "/datasources-config") {
+        const b = await readBody(req);
+        const next = sanitizeDatasourceUpdate(ctx.dataRoot, b);
+        writeDatasourceConfig(ctx.dataRoot, next);
+        return send(res, 200, next);
+      }
+      if (req.method === "POST" && url.pathname === "/datasources/probe-tushare") {
+        const b = (await readBody(req)) as { tushare?: { mode?: string; token?: string; base_url?: string } };
+        const cfg = sanitizeDatasourceUpdate(ctx.dataRoot, { tushare: b?.tushare ?? null }).tushare;
+        if (!cfg) return send(res, 400, { error: "缺少 Tushare 配置" });
+        return send(res, 200, await probeTushare(cfg));
+      }
       // 界面查询:页面按**名字**要一屏数据,不点名物理端点(见 service.pageQuery)
       if (req.method === "GET" && parts[0] === "page" && parts[1] && parts.length === 2) {
         return await withRequestAbort(req, res, async (signal) => send(res, 200, await pageQuery(ctx, { query: parts[1], symbol: q.symbol, refresh: q.refresh === "1", signal })));

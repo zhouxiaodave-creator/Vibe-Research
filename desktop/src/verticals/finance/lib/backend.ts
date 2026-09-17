@@ -258,6 +258,13 @@ export const backend = {
   },
   health: () => call<{ ok: boolean; version: string }>("/health"),
   product: () => call<ProductInfo>("/product"),
+  datasourcesConfig: () => call<DatasourceConfig>("/datasources-config"),
+  saveDatasourcesConfig: (patch: Partial<DatasourceConfig>) =>
+    call<DatasourceConfig>("/datasources-config", { method: "POST", body: JSON.stringify(patch) }),
+  probeTushare: (tushare: { mode: string; token: string; base_url: string }) =>
+    call<TushareProbeResult>("/datasources/probe-tushare", { method: "POST", body: JSON.stringify({ tushare }) }),
+  endpoints: (opts: { layer?: string; market?: string; q?: string } = {}) =>
+    call<EndpointSummary[]>("/endpoints" + (opts.q ? `?q=${encodeURIComponent(opts.q)}` : "")),
   localAgents: () => call<LocalAgentStatus[]>("/local-agents"),
   startCodexLogin: (signal?: AbortSignal) => call<{ state: "started" | "pending" }>("/local-agents/codex/login", {
     method: "POST", body: "{}", signal,
@@ -499,6 +506,40 @@ export interface LedgerRecord {
 }
 
 /** `/product` 的脱敏投影。🔴 只有环境变量**名**与一个布尔,**没有密钥值** */
+export interface TushareProbeResult {
+  ok: boolean;
+  mode: string;
+  message: string;
+  sample?: Record<string, unknown>;
+  duration_ms: number;
+}
+
+export interface DatasourceConfig {
+  version: number;
+  tushare: {
+    mode: "tuaremax" | "official";
+    token: string;
+    base_url: string;
+  } | null;
+  endpoints: Record<string, { enabled?: boolean; auth_key?: string; sample?: string }>;
+}
+
+export interface EndpointSummary {
+  id: string;
+  title: string;
+  layer: string;
+  market: string[];
+  source: string;
+  compliance: string;
+  symbol_kind: string;
+  stages: Record<string, string>;
+  enabled: boolean;
+  auth_env?: string;
+  computed?: boolean;
+  notes?: string;
+  args?: Record<string, unknown>;
+}
+
 export interface ProductInfo {
   version: string;
   provider: {
