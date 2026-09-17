@@ -264,8 +264,10 @@ export const backend = {
   probeTushare: (tushare: { mode: string; token: string; base_url: string }) =>
     call<TushareProbeResult>("/datasources/probe-tushare", { method: "POST", body: JSON.stringify({ tushare }) }),
   bandPipeline: () => call<BandPipelineBundle>("/band-pipeline"),
-  bandPipelineToggle: (enabled: boolean) =>
-    call<BandPipelineState>("/band-pipeline/toggle", { method: "POST", body: JSON.stringify({ enabled }) }),
+  bandPipelineToggle: (enabled: boolean, initialCash?: number) =>
+    call<BandPipelineState>("/band-pipeline/toggle", { method: "POST", body: JSON.stringify({ enabled, initial_cash: initialCash }) }),
+  bandPipelineReset: (initialCash?: number) =>
+    call<Record<string, unknown>>("/band-pipeline/reset", { method: "POST", body: JSON.stringify({ initial_cash: initialCash }) }),
   bandPipelineRun: (action: "paper" | "evaluate") =>
     call<BandPipelineState>("/band-pipeline/run", { method: "POST", body: JSON.stringify({ action }) }),
   endpoints: (opts: { layer?: string; market?: string; q?: string } = {}) =>

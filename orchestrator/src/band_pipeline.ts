@@ -143,6 +143,25 @@ export function setBandPipelineEnabled(dataRoot: string, enabled: boolean): Band
   return state;
 }
 
+/** 初始化模拟盘(重置持仓、现金、流水),并写入初始资金。 */
+export function initPaper(dataRoot: string, initialCash: number): Record<string, unknown> {
+  const pipeline = readBandPipeline(dataRoot);
+  const cash = Number.isFinite(initialCash) && initialCash >= 1000 ? initialCash : 100_000;
+  const fresh = {
+    cash,
+    initial_cash: cash,
+    positions: {},
+    trades: [],
+    equity_history: [],
+    started_at: new Date().toISOString(),
+    active_combos: [],
+  };
+  const dir = path.join(pipeline.engine_path, "paper");
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(dir, "state.json"), JSON.stringify(fresh, null, 2), { mode: 0o600 });
+  return fresh;
+}
+
 export function runBandPipelineNow(repoRoot: string, dataRoot: string, action: "paper" | "evaluate"): BandPipelineState {
   const state = readBandPipeline(dataRoot);
   const python = state.python_path || findPython(repoRoot);

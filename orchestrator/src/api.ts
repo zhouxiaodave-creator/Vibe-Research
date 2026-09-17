@@ -23,7 +23,7 @@ import { resumeUnifiedTask, runUnifiedTask } from "./task_service.ts";
 import { deepTargetResolverFor } from "./deep_target_registry.ts";
 import { readDatasourceConfig, sanitizeDatasourceUpdate, writeDatasourceConfig } from "./datasource_config.ts";
 import { probeTushare } from "./tushare_probe.ts";
-import { readBandPipeline, setBandPipelineEnabled, runBandPipelineNow, startBandPipeline, stopBandPipeline, readPaperState, readEffectiveCombos } from "./band_pipeline.ts";
+import { readBandPipeline, setBandPipelineEnabled, runBandPipelineNow, startBandPipeline, stopBandPipeline, readPaperState, readEffectiveCombos, initPaper } from "./band_pipeline.ts";
 
 
 // **composition root**:插件在入口注册,Core 模块一律不 import 它
@@ -225,13 +225,23 @@ export function createApiServer(ctx: ServiceContext, opts: { token: string; cook
         });
       }
       if (req.method === "POST" && url.pathname === "/band-pipeline/toggle") {
-        const b = (await readBody(req)) as { enabled?: boolean };
-        return send(res, 200, setBandPipelineEnabled(ctx.dataRoot, b?.enabled === true));
+        const b = (await readBody(req)) as { enabled?: boolean; initial_cash?: number };
+        const enabled = b?.enabled === true;
+        // 开启且模拟盘未初始化时,用输入的初始资金建仓
+        if (enabled && !readPaperState(ctx.dataRoot)) {
+          initPaper(ctx.dataRoot, Number(b?.initial_cash ?? 100_000));
+        }
+        return send(res, 200, setBandPipelineEnabled(ctx.dataRoot, enabled));
       }
       if (req.method === "POST" && url.pathname === "/band-pipeline/run") {
         const b = (await readBody(req)) as { action?: string };
         const action = b?.action === "evaluate" ? "evaluate" : "paper";
         return send(res, 200, runBandPipelineNow(ctx.repoRoot, ctx.dataRoot, action));
+      }
+      if (req.method === "POST" && url.pathname === "/band-pipeline/reset") {
+        const b = (await readBody(req)) as { initial_cash?: number };
+        const paper = initPaper(ctx.dataRoot, Number(b?.initial_cash ?? 100_000));
+        return send(res, 200, paper);
       }
       // 界面查询:页面按**名字**要一屏数据,不点名物理端点(见 service.pageQuery)
       if (req.method === "GET" && parts[0] === "page" && parts[1] && parts.length === 2) {

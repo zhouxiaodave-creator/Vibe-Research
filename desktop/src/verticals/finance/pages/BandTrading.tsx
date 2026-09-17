@@ -16,6 +16,7 @@ export function BandTrading() {
   const [bundle, setBundle] = useState<BandPipelineBundle | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [initialCash, setInitialCash] = useState("100000");
 
   const load = useCallback(async () => {
     const b = await backend.bandPipeline();
@@ -27,9 +28,21 @@ export function BandTrading() {
   const toggle = async (enabled: boolean) => {
     setBusy(true);
     try {
-      await backend.bandPipelineToggle(enabled);
+      await backend.bandPipelineToggle(enabled, Number(initialCash));
       await load();
       setMsg(enabled ? "流水线已开启" : "流水线已关闭");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = async () => {
+    setBusy(true);
+    setMsg("");
+    try {
+      await backend.bandPipelineReset(Number(initialCash));
+      await load();
+      setMsg(`模拟盘已重置，初始资金 ¥${Number(initialCash).toLocaleString()}`);
     } finally {
       setBusy(false);
     }
@@ -53,6 +66,10 @@ export function BandTrading() {
   const positions = (paper?.positions as Record<string, Record<string, unknown>>) ?? {};
   const trades = (paper?.trades as Array<Record<string, unknown>>) ?? [];
   const equity = (paper?.equity_history as Array<Record<string, unknown>>) ?? [];
+  const initial = Number(paper?.initial_cash ?? 100000);
+  const latestEquity = equity.length ? Number(equity[equity.length - 1]?.equity) : initial;
+  const totalPnl = latestEquity - initial;
+  const pnlPct = initial > 0 ? (totalPnl / initial) * 100 : 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-6">
@@ -94,6 +111,23 @@ export function BandTrading() {
             <div className="mt-1 truncate font-mono text-xs">{p?.engine_path ?? "未配置"}</div>
           </div>
         </div>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">初始资金（元）</label>
+            <input
+              type="number"
+              min="1000"
+              step="1000"
+              value={initialCash}
+              onChange={(e) => setInitialCash(e.target.value)}
+              className="w-40 rounded-lg border bg-background px-3 py-2 font-mono text-sm"
+            />
+          </div>
+          <button onClick={() => void reset()} disabled={busy} className="rounded-lg border border-destructive/40 px-4 py-2 text-sm text-destructive disabled:opacity-60">
+            重置模拟盘
+          </button>
+          {msg && <span className="self-end text-sm text-muted-foreground">{msg}</span>}
+        </div>
         <div className="mt-4 flex gap-3">
           <button onClick={() => void runNow("paper")} disabled={busy} className="flex items-center gap-1 rounded-lg border border-primary/40 px-4 py-2 text-sm text-primary disabled:opacity-60">
             <Play className="h-4 w-4" /> 立即跑尾盘模拟
@@ -101,7 +135,6 @@ export function BandTrading() {
           <button onClick={() => void runNow("evaluate")} disabled={busy} className="flex items-center gap-1 rounded-lg border border-primary/40 px-4 py-2 text-sm text-primary disabled:opacity-60">
             <RefreshCw className="h-4 w-4" /> 立即评估
           </button>
-          {msg && <span className="self-center text-sm text-muted-foreground">{msg}</span>}
         </div>
         {p?.last_run_summary && (
           <pre className="mt-3 max-h-32 overflow-auto rounded-lg bg-muted/40 p-3 font-mono text-xs">{p.last_run_summary}</pre>
@@ -115,7 +148,7 @@ export function BandTrading() {
         </div>
         {paper ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
               <div className="rounded-lg border p-3">
                 <div className="text-xs text-muted-foreground">现金</div>
                 <div className="mt-1 font-mono">¥{Number(paper.cash).toFixed(2)}</div>
@@ -126,7 +159,19 @@ export function BandTrading() {
               </div>
               <div className="rounded-lg border p-3">
                 <div className="text-xs text-muted-foreground">最新净值</div>
-                <div className="mt-1 font-mono">¥{equity.length ? Number(equity[equity.length - 1]?.equity).toFixed(2) : "—"}</div>
+                <div className="mt-1 font-mono">¥{latestEquity.toFixed(2)}</div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">总收益</div>
+                <div className={`mt-1 font-mono ${totalPnl >= 0 ? "text-success" : "text-destructive"}`}>
+                  {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">收益率</div>
+                <div className={`mt-1 font-mono ${pnlPct >= 0 ? "text-success" : "text-destructive"}`}>
+                  {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+                </div>
               </div>
             </div>
             {Object.keys(positions).length > 0 && (
@@ -145,17 +190,36 @@ export function BandTrading() {
             )}
             {trades.length > 0 && (
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-muted-foreground">交易流水（最近 8 笔）</h3>
-                <div className="space-y-1">
+                <h3 className="mb-2 text-sm font-semibold text-muted-foreground">买卖记录（最近 10 笔）</h3>
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2">日期</th>
+                        <th className="px-3 py-2">方向</th>
+                        <th className="px-3 py-2">代码</th>
+                        <th className="px-3 py-2 text-right">价格</th>
+                        <th className="px-3 py-2 text-right">数量</th>
+                        <th className="px-3 py-2 text-right">金额</th>
+                        <th className="px-3 py-2 text-right">手续费</th>
+                        <th className="px-3 py-2">原因</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                   {trades.slice(-8).reverse().map((t, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-lg border px-3 py-1.5 font-mono text-xs">
-                      <span>{String(t.date)}</span>
-                      <span className={t.side === "buy" ? "text-success" : "text-destructive"}>{t.side === "buy" ? "买入" : "卖出"}</span>
-                      <span>{String(t.etf)}</span>
-                      <span>{Number(t.shares)} 份 @ {Number(t.price).toFixed(4)}</span>
-                      <span className="text-muted-foreground">{String(t.reason)}</span>
-                    </div>
+                      <tr key={i} className="border-t">
+                        <td className="px-3 py-1.5 font-mono">{String(t.date)}</td>
+                        <td className={`px-3 py-1.5 ${t.side === "buy" ? "text-success" : "text-destructive"}`}>{t.side === "buy" ? "买入" : "卖出"}</td>
+                        <td className="px-3 py-1.5 font-mono">{String(t.etf)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{Number(t.price).toFixed(4)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{Number(t.shares)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{(Number(t.price) * Number(t.shares)).toFixed(2)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{Number(t.fee ?? 0).toFixed(2)}</td>
+                        <td className="px-3 py-1.5 text-muted-foreground">{String(t.reason)}</td>
+                      </tr>
                   ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
