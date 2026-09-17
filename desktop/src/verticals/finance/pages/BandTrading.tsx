@@ -66,6 +66,7 @@ export function BandTrading() {
   const positions = (paper?.positions as Record<string, Record<string, unknown>>) ?? {};
   const trades = (paper?.trades as Array<Record<string, unknown>>) ?? [];
   const equity = (paper?.equity_history as Array<Record<string, unknown>>) ?? [];
+  const optHistory = (bundle?.optimize_history ?? []) as Array<Record<string, unknown>>;
   const initial = Number(paper?.initial_cash ?? 100000);
   const latestEquity = equity.length ? Number(equity[equity.length - 1]?.equity) : initial;
   const totalPnl = latestEquity - initial;
@@ -145,6 +146,7 @@ export function BandTrading() {
         <div className="mb-3 flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">模拟盘</h2>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">最多持仓 5 只 · 等权分配 · 按超额收益优先级自动选</span>
         </div>
         {paper ? (
           <div className="space-y-4">
@@ -246,6 +248,41 @@ export function BandTrading() {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">暂无有效组合，请先在研究阶段跑矩阵。</p>
+        )}
+      </GlassCard>
+
+      <GlassCard className="p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <RefreshCw className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">优化历史</h2>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{optHistory.length} 次</span>
+        </div>
+        {optHistory.length ? (
+          <div className="space-y-3">
+            {[...optHistory].reverse().map((h, i) => {
+              const ai = h.ai_analysis as Record<string, unknown> | undefined;
+              return (
+                <div key={i} className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-destructive">触发优化</span>
+                    <span className="font-mono text-xs text-muted-foreground">{new Date(String(h.at)).toLocaleString("zh-CN", { hour12: false })}</span>
+                  </div>
+                  <div className="mt-2 text-sm">
+                    <div><span className="text-muted-foreground">触发原因：</span>{String(h.reason)}（近4周 {Number(h.paper_4w_return).toFixed(2)}%）</div>
+                    {ai?.ok === true && (
+                      <>
+                        <div className="mt-1"><span className="text-muted-foreground">AI 分析原因：</span>{String(ai.原因 ?? ai.raw ?? "")}</div>
+                        <div className="mt-1"><span className="text-muted-foreground">AI 建议方向：</span>{String(ai.建议 ?? "")}</div>
+                      </>
+                    )}
+                    <div className="mt-1"><span className="text-muted-foreground">代码验证后采纳：</span>{(h.new_combos as Array<Record<string, unknown>>).length} 个新组合</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">还没有触发过优化。当模拟盘连续跑输时，系统会自动触发，AI 分析原因 + 代码验证换组合，这里会展示完整记录。</p>
         )}
       </GlassCard>
 

@@ -560,6 +560,7 @@ export interface BandPipelineBundle {
   pipeline: BandPipelineState;
   paper: Record<string, unknown> | null;
   combos: Array<Record<string, unknown>>;
+  optimize_history: Array<Record<string, unknown>>;
 }
 
 export interface ProductInfo {

@@ -23,7 +23,7 @@ import { resumeUnifiedTask, runUnifiedTask } from "./task_service.ts";
 import { deepTargetResolverFor } from "./deep_target_registry.ts";
 import { readDatasourceConfig, sanitizeDatasourceUpdate, writeDatasourceConfig } from "./datasource_config.ts";
 import { probeTushare } from "./tushare_probe.ts";
-import { readBandPipeline, setBandPipelineEnabled, runBandPipelineNow, startBandPipeline, stopBandPipeline, readPaperState, readEffectiveCombos, initPaper } from "./band_pipeline.ts";
+import { readBandPipeline, setBandPipelineEnabled, runBandPipelineNow, startBandPipeline, stopBandPipeline, readPaperState, readEffectiveCombos, initPaper, readOptimizeHistory } from "./band_pipeline.ts";
 
 
 // **composition root**:插件在入口注册,Core 模块一律不 import 它
@@ -222,6 +222,7 @@ export function createApiServer(ctx: ServiceContext, opts: { token: string; cook
           pipeline: readBandPipeline(ctx.dataRoot),
           paper: readPaperState(ctx.dataRoot),
           combos: readEffectiveCombos(ctx.dataRoot),
+          optimize_history: readOptimizeHistory(ctx.dataRoot),
         });
       }
       if (req.method === "POST" && url.pathname === "/band-pipeline/toggle") {

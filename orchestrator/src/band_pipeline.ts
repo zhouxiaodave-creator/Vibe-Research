@@ -58,6 +58,16 @@ export function readEffectiveCombos(dataRoot: string): Record<string, unknown>[]
   }
 }
 
+export function readOptimizeHistory(dataRoot: string): Record<string, unknown>[] {
+  const pipeline = readBandPipeline(dataRoot);
+  try {
+    const p = path.join(pipeline.engine_path, "paper", "optimize_history.json");
+    return JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, unknown>[];
+  } catch {
+    return [];
+  }
+}
+
 function writeBandPipeline(dataRoot: string, state: BandPipelineState): void {
   fs.writeFileSync(statePath(dataRoot), JSON.stringify(state, null, 2), { mode: 0o600 });
 }
@@ -72,6 +82,8 @@ function runPython(python: string, script: string, cwd: string): { ok: boolean; 
 }
 
 function findPython(repoRoot: string): string {
+  // 打包版由 packaged.ts 设置 VRA_PYTHON(Resources/python);源码版用 .venv
+  if (process.env.VRA_PYTHON) return process.env.VRA_PYTHON;
   return path.join(repoRoot, ".venv", "bin", "python");
 }
 
