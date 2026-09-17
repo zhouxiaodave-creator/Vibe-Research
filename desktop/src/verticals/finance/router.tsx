@@ -28,6 +28,7 @@ export const router = createBrowserRouter([
       { path: "/my-reports", lazy: async () => ({ Component: (await import("@/pages/MyReports")).MyReports }) },
       { path: "/notes", lazy: async () => ({ Component: (await import("@/pages/Notes")).Notes }) },
       { path: "/datasources", lazy: async () => ({ Component: (await import("@/pages/Datasources")).Datasources }) },
+      { path: "/band-trading", lazy: async () => ({ Component: (await import("@/pages/BandTrading")).BandTrading }) },
       { path: "/settings", element: <Settings /> },
     ],
   },

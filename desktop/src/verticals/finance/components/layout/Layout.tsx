@@ -31,6 +31,7 @@ const NAV = [
   { to: "/my-reports", icon: FileText, label: "我的研报" },
   { to: "/notes", icon: NotebookPen, label: "研究记录" },
   { to: "/datasources", icon: Database, label: "数据源" },
+  { to: "/band-trading", icon: FlaskConical, label: "波段策略" },
   { to: "/settings", icon: Settings, label: "接入 AI" },
 ];
 

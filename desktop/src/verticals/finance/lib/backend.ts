@@ -263,6 +263,11 @@ export const backend = {
     call<DatasourceConfig>("/datasources-config", { method: "POST", body: JSON.stringify(patch) }),
   probeTushare: (tushare: { mode: string; token: string; base_url: string }) =>
     call<TushareProbeResult>("/datasources/probe-tushare", { method: "POST", body: JSON.stringify({ tushare }) }),
+  bandPipeline: () => call<BandPipelineBundle>("/band-pipeline"),
+  bandPipelineToggle: (enabled: boolean) =>
+    call<BandPipelineState>("/band-pipeline/toggle", { method: "POST", body: JSON.stringify({ enabled }) }),
+  bandPipelineRun: (action: "paper" | "evaluate") =>
+    call<BandPipelineState>("/band-pipeline/run", { method: "POST", body: JSON.stringify({ action }) }),
   endpoints: (opts: { layer?: string; market?: string; q?: string } = {}) =>
     call<EndpointSummary[]>("/endpoints" + (opts.q ? `?q=${encodeURIComponent(opts.q)}` : "")),
   localAgents: () => call<LocalAgentStatus[]>("/local-agents"),
@@ -538,6 +543,21 @@ export interface EndpointSummary {
   computed?: boolean;
   notes?: string;
   args?: Record<string, unknown>;
+}
+
+export interface BandPipelineState {
+  enabled: boolean;
+  stage: "idle" | "paper" | "evaluate" | "optimize";
+  last_run_at: string | null;
+  last_run_summary: string | null;
+  engine_path: string;
+  python_path: string;
+}
+
+export interface BandPipelineBundle {
+  pipeline: BandPipelineState;
+  paper: Record<string, unknown> | null;
+  combos: Array<Record<string, unknown>>;
 }
 
 export interface ProductInfo {

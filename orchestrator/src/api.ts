@@ -23,6 +23,7 @@ import { resumeUnifiedTask, runUnifiedTask } from "./task_service.ts";
 import { deepTargetResolverFor } from "./deep_target_registry.ts";
 import { readDatasourceConfig, sanitizeDatasourceUpdate, writeDatasourceConfig } from "./datasource_config.ts";
 import { probeTushare } from "./tushare_probe.ts";
+import { readBandPipeline, setBandPipelineEnabled, runBandPipelineNow, startBandPipeline, stopBandPipeline, readPaperState, readEffectiveCombos } from "./band_pipeline.ts";
 
 
 // **composition root**:插件在入口注册,Core 模块一律不 import 它
@@ -214,6 +215,23 @@ export function createApiServer(ctx: ServiceContext, opts: { token: string; cook
         const cfg = sanitizeDatasourceUpdate(ctx.dataRoot, { tushare: b?.tushare ?? null }).tushare;
         if (!cfg) return send(res, 400, { error: "缺少 Tushare 配置" });
         return send(res, 200, await probeTushare(cfg));
+      }
+      // 波段策略自动化流水线:状态 / 开关 / 手动触发
+      if (req.method === "GET" && url.pathname === "/band-pipeline") {
+        return send(res, 200, {
+          pipeline: readBandPipeline(ctx.dataRoot),
+          paper: readPaperState(ctx.dataRoot),
+          combos: readEffectiveCombos(ctx.dataRoot),
+        });
+      }
+      if (req.method === "POST" && url.pathname === "/band-pipeline/toggle") {
+        const b = (await readBody(req)) as { enabled?: boolean };
+        return send(res, 200, setBandPipelineEnabled(ctx.dataRoot, b?.enabled === true));
+      }
+      if (req.method === "POST" && url.pathname === "/band-pipeline/run") {
+        const b = (await readBody(req)) as { action?: string };
+        const action = b?.action === "evaluate" ? "evaluate" : "paper";
+        return send(res, 200, runBandPipelineNow(ctx.repoRoot, ctx.dataRoot, action));
       }
       // 界面查询:页面按**名字**要一屏数据,不点名物理端点(见 service.pageQuery)
       if (req.method === "GET" && parts[0] === "page" && parts[1] && parts.length === 2) {
@@ -472,6 +490,10 @@ async function main(): Promise<void> {
   // 🔴 打印**实际绑上的端口**,不是请求的那个 —— `--port 0` 时请求的是 0,
   //    调用方（桌面外壳）就是靠这一行知道该连哪儿的
   srv.listen(port, host, () => {
+    // 波段策略流水线随 app 启停:后端监听成功后启动调度器
+    startBandPipeline(ctx.repoRoot, ctx.dataRoot);
+    process.once("SIGTERM", stopBandPipeline);
+    process.once("SIGINT", stopBandPipeline);
     // 🔴 **整行都用实际端口**。只改前半段的话,给用户点的那个登录链接仍然写着 `:0`,
     //    照着点必然打不开 —— 而这一行看起来是「已经修好了」的。
     const p = actualPort(srv, port);
